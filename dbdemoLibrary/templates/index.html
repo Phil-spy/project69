@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบห้องสมุด — Library System</title>
+  <title>ร้านอาหาร — restaurant</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">📚 ระบบห้องสมุด <span>Library System</span></div>
+    <div class="brand">📚 ร้านอาหาร <span>restaurant</span></div>
     <nav><a href="/" class="active">จัดการข้อมูล</a><a href="/report">รายงาน</a></nav>
   </header>
   <main class="container">
     <div class="tabs">
-      <button class="tab active" data-entity="members">สมาชิก</button>
-      <button class="tab" data-entity="books">หนังสือ</button>
-      <button class="tab" data-entity="loans">การยืม</button>
+      <button class="tab active" data-entity="customers">ลูกค้า</button>
+      <button class="tab" data-entity="menu">เมนูอาหาร</button>
+      <button class="tab" data-entity="orders">การสั่งอาหาร</button>
     </div>
     <section class="card">
       <h3>ค้นหา <span id="searchTitle"></span></h3>

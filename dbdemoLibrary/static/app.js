@@ -3,158 +3,108 @@
 //  ปรับช่องค้นหา/ฟอร์มได้ที่ตัวแปร ENTITIES ด้านล่าง
 // ============================================================
 const ENTITIES = {
-  "members": {
-    "label": "สมาชิก",
-    "api": "/api/members",
-    "idKey": "member_id",
+  "customers": {
+    "label": "ลูกค้า",
+    "api": "/api/customers",
+    "idKey": "customer_id",
     "search": [
       {
         "key": "name",
-        "label": "ชื่อ",
-        "type": "text"
-      },
-      {
-        "key": "gender",
-        "label": "เพศ",
-        "type": "select",
-        "options": [
-          "",
-          "M",
-          "F"
-        ]
-      },
-      {
-        "key": "member_type",
-        "label": "ประเภท",
-        "type": "select",
-        "options": [
-          "",
-          "regular",
-          "VIP"
-        ]
-      }
-    ],
-    "form": [
-      {
-        "key": "name",
-        "label": "ชื่อ",
-        "type": "text"
-      },
-      {
-        "key": "gender",
-        "label": "เพศ",
-        "type": "select",
-        "options": [
-          "M",
-          "F"
-        ]
-      },
-      {
-        "key": "email",
-        "label": "อีเมล",
+        "label": "ชื่อลูกค้า",
         "type": "text"
       },
       {
         "key": "phone",
         "label": "เบอร์โทร",
         "type": "text"
+      }
+    ],
+    "form": [
+      {
+        "key": "name",
+        "label": "ชื่อ-นามสกุล",
+        "type": "text"
       },
       {
-        "key": "member_type",
-        "label": "ประเภท",
+        "key": "phone",
+        "label": "เบอร์โทรศัพท์",
+        "type": "text"
+      },
+      {
+        "key": "member_tier",
+        "label": "ระดับสมาชิก",
         "type": "select",
-        "options": [
-          "regular",
-          "VIP"
-        ]
+        "options": ["General", "VIP"]
       }
     ]
   },
-  "books": {
-    "label": "หนังสือ",
-    "api": "/api/books",
-    "idKey": "title_id",
+  "menu": {
+    "label": "เมนูอาหาร",
+    "api": "/api/menu",
+    "idKey": "menu_id",
     "search": [
       {
-        "key": "title",
-        "label": "ชื่อเรื่อง",
-        "type": "text"
-      },
-      {
-        "key": "author",
-        "label": "ผู้แต่ง",
+        "key": "name",
+        "label": "ชื่อเมนู",
         "type": "text"
       },
       {
         "key": "category",
         "label": "หมวดหมู่",
-        "type": "text"
+        "type": "select",
+        "options": ["", "จานหลัก", "เครื่องดื่ม", "ของหวาน"]
       }
     ],
     "form": [
       {
-        "key": "title",
-        "label": "ชื่อเรื่อง",
+        "key": "name",
+        "label": "ชื่อเมนูอาหาร",
         "type": "text"
       },
       {
-        "key": "author",
-        "label": "ผู้แต่ง",
-        "type": "text"
+        "key": "price",
+        "label": "ราคา",
+        "type": "number"
       },
       {
         "key": "category",
         "label": "หมวดหมู่",
-        "type": "text"
-      },
-      {
-        "key": "publish_year",
-        "label": "ปีพิมพ์",
-        "type": "number"
+        "type": "select",
+        "options": ["จานหลัก", "เครื่องดื่ม", "ของหวาน"]
       }
     ]
   },
-  "loans": {
-    "label": "การยืม",
-    "api": "/api/loans",
-    "idKey": "loan_id",
+  "orders": {
+    "label": "การสั่งอาหาร",
+    "api": "/api/orders",
+    "idKey": "order_id",
     "search": [
       {
-        "key": "member_id",
-        "label": "รหัสสมาชิก",
-        "type": "number"
-      },
-      {
-        "key": "copy_id",
-        "label": "รหัสสำเนา",
-        "type": "number"
+        "key": "table_no",
+        "label": "หมายเลขโต๊ะ",
+        "type": "text"
       }
     ],
     "form": [
       {
-        "key": "member_id",
-        "label": "รหัสสมาชิก",
+        "key": "customer_id",
+        "label": "รหัสลูกค้า",
+        "type": "text"
+      },
+      {
+        "key": "menu_id",
+        "label": "รหัสเมนูอาหาร",
+        "type": "text"
+      },
+      {
+        "key": "quantity",
+        "label": "จำนวน",
         "type": "number"
       },
       {
-        "key": "copy_id",
-        "label": "รหัสสำเนา",
-        "type": "number"
-      },
-      {
-        "key": "loan_date",
-        "label": "วันที่ยืม",
-        "type": "date"
-      },
-      {
-        "key": "due_date",
-        "label": "กำหนดคืน",
-        "type": "date"
-      },
-      {
-        "key": "return_date",
-        "label": "วันที่คืน",
-        "type": "date"
+        "key": "table_no",
+        "label": "หมายเลขโต๊ะ",
+        "type": "text"
       }
     ]
   }

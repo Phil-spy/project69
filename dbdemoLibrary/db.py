@@ -7,7 +7,6 @@ import config
 
 
 def get_connection():
-    
     return mysql.connector.connect(
         host=config.DB_HOST, user=config.DB_USER, password=config.DB_PASSWORD,
         database=config.DB_NAME, port=config.DB_PORT)
@@ -28,146 +27,239 @@ def run_command(sql, params=None):
     cur.close(); conn.close(); return out
 
 
+def blank_to_none(value):
+    """ช่องที่ไม่ได้กรอกในฟอร์มจะส่งมาเป็น "" — แปลงเป็น None (= NULL ใน SQL)
+    ใช้กับคอลัมน์ที่ว่างได้ เช่น return_date, paid_date  เพราะ MySQL ไม่รับ '' เป็น DATE"""
+    return None if value in ("", None) else value
+
+
 def _todo(name):
     raise NotImplementedError(f"TODO: ยังไม่ได้เขียนฟังก์ชัน {name} ใน db.py")
 
 
-# ---------- สมาชิก (member) ----------
-def search_members(filters):
-    """ค้นหา สมาชิก ตามเงื่อนไข (name, gender, member_type)
-    คำใบ้: เริ่มจาก sql = "SELECT * FROM member WHERE 1=1"
-    แล้วต่อเงื่อนไขเฉพาะ filter ที่มีค่า (ข้อความใช้ LIKE %s, อื่น ๆ ใช้ = %s)"""
-
-    sql = "SELECT * FROM member WHERE 1=1"
-    params = []
-    if filters.get("name"):
+# ---------- ลูกค้า (customer) ----------
+def search_customers(filters):
+    """ค้นหา ลูกค้า ตามเงื่อนไข (name, phone, member_tier)"""
+    sql = "SELECT customer_id, name, phone, member_tier FROM customer WHERE 1=1"
+    query_params = []
+    name = (filters or {}).get('name', '')
+    phone = (filters or {}).get('phone', '')
+    member_tier = (filters or {}).get('member_tier', '')
+    if name:
         sql += " AND name LIKE %s"
-        params.append("%" + filters["name"] + "%")
-    if filters.get("gender"):
-        sql += " AND gender = %s"
-        params.append(filters["gender"])
-    if filters.get("member_type"):
-        sql += " AND member_type = %s"
-        params.append(filters["member_type"])
-    sql += " ORDER BY member_id"
-    return run_query(sql, params)
+        query_params.append(f"%{name}%")
+    if phone:
+        sql += " AND phone LIKE %s"
+        query_params.append(f"%{phone}%")
+    if member_tier:
+        sql += " AND member_tier = %s"
+        query_params.append(member_tier)
+    return run_query(sql, query_params)
 
 
+def get_customer(customer_id):
+    """ดึง ลูกค้า 1 รายการตาม customer_id"""
+    sql = "SELECT customer_id, name, phone, member_tier FROM customer WHERE customer_id = %s"
+    rows = run_query(sql, (customer_id,))
+    return rows[0] if rows else {}
 
 
-def get_member(member_id):
-    """ดึง สมาชิก 1 รายการตาม member_id (ใช้ตอนเปิดฟอร์มแก้ไข)"""
-    # TODO: SELECT * FROM member WHERE member_id = %s แล้วคืนแถวเดียว
-   
-    rows = run_query("SELECT * FROM member WHERE member_id = %s", (member_id,))
-    return rows[0] if rows else None
+def create_customer(data):
+    """เพิ่ม ลูกค้า ใหม่"""
+    sql = "INSERT INTO customer (name, phone, member_tier) VALUES (%s, %s, %s)"
+    params = (data.get('name'), data.get('phone'), data.get('member_tier', 'General'))
+    return run_command(sql, params)
 
 
-def create_member(data):
-    """เพิ่ม สมาชิก ใหม่ — data มีคีย์: name, gender, email, phone, member_type"""
-    # TODO: INSERT INTO member (...) VALUES (%s, ...)
-    _todo("create_member")
+def update_customer(cust_id, data):
+    """แก้ไข ลูกค้า ตาม cust_id"""
+    sql = "UPDATE customer SET name = %s, phone = %s, member_tier = %s WHERE cust_id = %s"
+    params = (data.get('name'), data.get('phone'), data.get('member_tier'), cust_id)
+    return run_command(sql, params)
 
 
-def update_member(member_id, data):
-    """แก้ไข สมาชิก ตาม member_id"""
-    # TODO: UPDATE member SET ... WHERE member_id=%s
-    _todo("update_member")
+def delete_customer(cust_id):
+    """ลบ ลูกค้า ตาม cust_id"""
+    sql = "DELETE FROM customer WHERE cust_id = %s"
+    return run_command(sql, (cust_id,))
 
 
-def delete_member(member_id):
-    """ลบ สมาชิก ตาม member_id"""
-    # TODO: DELETE FROM member WHERE member_id=%s
-    _todo("delete_member")
+# compatibility aliases for member-based routes and older naming
+search_members = search_customers
+get_member = get_customer
+create_member = create_customer
+update_member = update_customer
+delete_member = delete_customer
 
-# ---------- หนังสือ (book_title) ----------
-def search_books(filters):
-    """ค้นหา หนังสือ ตามเงื่อนไข (title, author, category)
-    คำใบ้: เริ่มจาก sql = "SELECT * FROM book_title WHERE 1=1"
-    แล้วต่อเงื่อนไขเฉพาะ filter ที่มีค่า (ข้อความใช้ LIKE %s, อื่น ๆ ใช้ = %s)"""
+# ---------- เมนูอาหาร (menu_item) ----------
+def search_items(filters):
+    """ค้นหา เมนูอาหาร ตามเงื่อนไข (name, category)"""
+    sql = "SELECT item_id, name, category, price, is_available FROM menu_item WHERE 1=1"
+    query_params = []
+    name = (filters or {}).get('name', '')
+    category = (filters or {}).get('category', '')
+    if name:
+        sql += " AND name LIKE %s"
+        query_params.append(f"%{name}%")
+    if category:
+        sql += " AND category = %s"
+        query_params.append(category)
+    return run_query(sql, query_params)
+
+
+def get_item(item_id):
+    """ดึง เมนูอาหาร 1 รายการตาม item_id"""
+    sql = "SELECT item_id, name, category, price, is_available FROM menu_item WHERE item_id = %s"
+    rows = run_query(sql, (item_id,))
+    return rows[0] if rows else {}
+
+
+def create_item(data):
+    """เพิ่ม เมนูอาหาร ใหม่ — data มีคีย์: name, category, price, is_available"""
+    sql = "INSERT INTO menu_item (name, category, price, is_available) VALUES (%s, %s, %s, %s)"
+    params = (
+        data.get('name'),
+        data.get('category'),
+        data.get('price', 0),
+        data.get('is_available', True),
+    )
+    return run_command(sql, params)
+
+
+def update_item(item_id, data):
+    """แก้ไข เมนูอาหาร ตาม item_id"""
+    sql = "UPDATE menu_item SET name = %s, category = %s, price = %s, is_available = %s WHERE item_id = %s"
+    params = (
+        data.get('name'),
+        data.get('category'),
+        data.get('price'),
+        data.get('is_available'),
+        item_id,
+    )
+    return run_command(sql, params)
+
+
+def delete_item(item_id):
+    """ลบ เมนูอาหาร ตาม item_id"""
+    sql = "DELETE FROM menu_item WHERE item_id = %s"
+    return run_command(sql, (item_id,))
+
+# ---------- ออเดอร์ (food_order) ----------
+def search_orders(filters):
+    """ค้นหา ออเดอร์ ตามเงื่อนไข (cust_id, table_id, status)
+    ต้องแสดงคอลัมน์: order_id, cust_id, ชื่อลูกค้า, table_id, order_time, status, total (ยอดรวม)
+    คำใบ้:
+      - JOIN customer เพื่อแสดงชื่อลูกค้า
+      - total (ยอดรวมของออเดอร์) ไม่ได้เก็บเป็นคอลัมน์ → ต้องคำนวณ = SUM(qty × price)
+        LEFT JOIN กับ subquery ที่รวมยอดของแต่ละ order_id (order_item JOIN menu_item ... GROUP BY order_id)
+        แล้วใช้ IFNULL(..., 0) เพราะออเดอร์ที่ยังไม่มีรายการอาหารจะได้ NULL
+      - เงื่อนไขทุกตัวใช้ = %s"""
     # TODO: เขียน SQL ค้นหาแบบยืดหยุ่นตาม filters (ใช้ %s เสมอ)
-    _todo("search_books")
+    _todo("search_orders")
 
 
-def get_book(title_id):
-    """ดึง หนังสือ 1 รายการตาม title_id (ใช้ตอนเปิดฟอร์มแก้ไข)"""
-    # TODO: SELECT * FROM book_title WHERE title_id = %s แล้วคืนแถวเดียว
-    _todo("get_book")
+def get_order(order_id):
+    """ดึง ออเดอร์ 1 รายการตาม order_id (ใช้ตอนเปิดฟอร์มแก้ไข)"""
+    # TODO: SELECT * FROM food_order WHERE order_id = %s แล้วคืนแถวเดียว
+    _todo("get_order")
 
 
-def create_book(data):
-    """เพิ่ม หนังสือ ใหม่ — data มีคีย์: title, author, category, publish_year"""
-    # TODO: INSERT INTO book_title (...) VALUES (%s, ...)
-    _todo("create_book")
+def check_table_free(table_id, order_id=None):
+    """ตรวจก่อนเปิดออเดอร์ (status = 'open') — ถ้าไม่ผ่านให้ raise ValueError("ข้อความ")
+    (หน้าเว็บจะแสดงข้อความนั้นเป็น alert ให้ผู้ใช้เห็น และไม่บันทึกข้อมูล)
+    1) โต๊ะต้องมีอยู่จริง → SELECT ... FROM dining_table WHERE table_id = %s
+    2) โต๊ะต้องว่าง = ไม่มีออเดอร์อื่นที่ยัง 'open' อยู่ที่โต๊ะนี้
+       → SELECT COUNT(*) AS n FROM food_order WHERE table_id = %s AND status = 'open' AND order_id <> %s
+       ★ ตอนเพิ่มใหม่ order_id เป็น None → ส่ง 0 แทน (order_id or 0) จะได้ไม่ตรงกับออเดอร์ไหนเลย
+    ตัวอย่าง: raise ValueError(f"โต๊ะ {table_id} ยังมีออเดอร์ที่ยังไม่ชำระเงิน")"""
+    # TODO: เขียนการตรวจ 2 ข้อตามคำใบ้
+    _todo("check_table_free")
 
 
-def update_book(title_id, data):
-    """แก้ไข หนังสือ ตาม title_id"""
-    # TODO: UPDATE book_title SET ... WHERE title_id=%s
-    _todo("update_book")
+def create_order(data):
+    """เพิ่ม ออเดอร์ ใหม่ — data มีคีย์: cust_id, table_id, order_time, status
+    คำใบ้:
+      1) ถ้า status = 'open' → เรียก check_table_free(data["table_id"]) ก่อน (โต๊ะต้องว่าง)
+      2) INSERT INTO food_order (...) VALUES (%s, ...)
+         (order_time ว่างได้ → blank_to_none(data["order_time"]))"""
+    # TODO: เขียนตามคำใบ้
+    _todo("create_order")
 
 
-def delete_book(title_id):
-    """ลบ หนังสือ ตาม title_id"""
-    # TODO: DELETE FROM book_title WHERE title_id=%s
-    _todo("delete_book")
-
-# ---------- การยืม (loan) ----------
-def search_loans(filters):
-    """ค้นหา การยืม ตามเงื่อนไข (member_id, copy_id)
-    คำใบ้: เริ่มจาก sql = "SELECT * FROM loan WHERE 1=1"
-    แล้วต่อเงื่อนไขเฉพาะ filter ที่มีค่า (ข้อความใช้ LIKE %s, อื่น ๆ ใช้ = %s)"""
-    # TODO: เขียน SQL ค้นหาแบบยืดหยุ่นตาม filters (ใช้ %s เสมอ)
-    _todo("search_loans")
+def update_order(order_id, data):
+    """แก้ไข ออเดอร์ ตาม order_id
+    คำใบ้:
+      1) ถ้า status ใหม่ = 'open' → check_table_free(data["table_id"], order_id)
+         (ส่ง order_id ไปด้วย เพื่อไม่นับออเดอร์ตัวเอง)
+      2) UPDATE food_order SET ... WHERE order_id=%s"""
+    # TODO: เขียนตามคำใบ้
+    _todo("update_order")
 
 
-def get_loan(loan_id):
-    """ดึง การยืม 1 รายการตาม loan_id (ใช้ตอนเปิดฟอร์มแก้ไข)"""
-    # TODO: SELECT * FROM loan WHERE loan_id = %s แล้วคืนแถวเดียว
-    _todo("get_loan")
-
-
-def create_loan(data):
-    """เพิ่ม การยืม ใหม่ — data มีคีย์: member_id, copy_id, loan_date, due_date, return_date"""
-    # TODO: INSERT INTO loan (...) VALUES (%s, ...)
-    _todo("create_loan")
-
-
-def update_loan(loan_id, data):
-    """แก้ไข การยืม ตาม loan_id"""
-    # TODO: UPDATE loan SET ... WHERE loan_id=%s
-    _todo("update_loan")
-
-
-def delete_loan(loan_id):
-    """ลบ การยืม ตาม loan_id"""
-    # TODO: DELETE FROM loan WHERE loan_id=%s
-    _todo("delete_loan")
+def delete_order(order_id):
+    """ลบ ออเดอร์ ตาม order_id"""
+    # TODO: DELETE FROM food_order WHERE order_id=%s
+    _todo("delete_order")
 
 
 # ============================================================
 #  REPORT (รายงาน — ใช้ JOIN + GROUP BY + subquery)
+#  ★ ชื่อคอลัมน์ใน SELECT จะกลายเป็นหัวตารางบนเว็บ — ใช้ AS 'ชื่อภาษาไทย' ได้
 # ============================================================
 def report_summary():
-    """ตัวเลขสรุปบนการ์ด dashboard — คืน dict เช่น {"members": 10, ...}
-    คำใบ้: ใช้ COUNT(*) หลายครั้ง"""
-    # TODO: นับจำนวนรวมต่าง ๆ เพื่อแสดงบนการ์ด
-    _todo("report_summary")
+    """ตัวเลขสรุปบนการ์ด dashboard — คืน dict {ชื่อการ์ด: ตัวเลข}  (1 คีย์ = 1 การ์ด)
+    ตอนนี้ยังไม่ได้เขียน SQL → คืนค่า None ทุกการ์ด หน้าเว็บจึงแสดง "—" รอไว้
+    ★ งานของนิสิต: เขียน SQL ตามตัวอย่างด้านล่าง (1 คอลัมน์ใน SELECT = 1 การ์ด
+      ชื่อหลัง AS = ข้อความใต้ตัวเลข) แล้วลบ return {...} ชุดล่างสุดทิ้ง
+    ★ การ์ด "คิดเพิ่มเอง" 2 ใบ: ตั้งชื่อการ์ดใหม่ แล้วเขียน SQL เอง
+    ★ ผลรวมเงินใช้ IFNULL(SUM(...), 0) — ถ้ายังไม่มีข้อมูล SUM จะได้ NULL"""
+    # ---- ตัวอย่างเมื่อเขียน SQL แล้ว (เอา # ข้างหน้าออก แล้วเติมให้ครบทุกการ์ด) ----
+    # sql = """SELECT
+    #            (SELECT COUNT(*) FROM ...) AS 'ลูกค้า',
+    #            (SELECT ...)               AS 'เมนู',
+    #            ...
+    #          """
+    # return run_query(sql)[0]      ← [0] = เอาแถวแรก (ผลมีแถวเดียว) ได้เป็น dict
 
-def report_popular_books():
-    """📈 หนังสือยอดนิยม (Most Borrowed)
-    คำใบ้: JOIN loan→book_copy→book_title, GROUP BY title, COUNT, ORDER BY DESC, LIMIT 5"""
-    # TODO: เขียน SQL รายงานนี้ (เขียน JOIN แบบ explicit INNER JOIN ... ON ...)
-    _todo("report_popular_books")
+    # TODO: ระหว่างที่ยังไม่ได้เขียน SQL คืนค่า None ให้การ์ดแสดง "—" รอไว้
+    return {
+        "ลูกค้า":         None,   # (SELECT COUNT(*) FROM customer)
+        "เมนู":           None,   # นับเมนูทั้งหมด
+        "ออเดอร์":        None,   # นับออเดอร์ทั้งหมด
+        "ยอดขายรวม":      None,   # IFNULL(SUM(qty × price), 0) จาก order_item JOIN menu_item
+        "คิดเพิ่มเอง 1":  None,   # ตั้งชื่อการ์ดใหม่ + เขียน SQL เอง
+        "คิดเพิ่มเอง 2":  None,   # ตั้งชื่อการ์ดใหม่ + เขียน SQL เอง
+    }
 
-def report_overdue():
-    """⏰ สมาชิกค้างคืน (Overdue)
-    คำใบ้: JOIN loan→member, loan→book_copy→book_title, WHERE return_date IS NULL AND due_date < CURDATE(), DATEDIFF"""
+def report_popular_items():
+    """📈 เมนูขายดี (Best Sellers)
+    คำใบ้: JOIN order_item→menu_item, GROUP BY item, SUM(qty), ORDER BY DESC, LIMIT 5"""
     # TODO: เขียน SQL รายงานนี้ (เขียน JOIN แบบ explicit INNER JOIN ... ON ...)
-    _todo("report_overdue")
+    _todo("report_popular_items")
 
-def report_members_above_avg():
-    """🏅 สมาชิกที่ยืมมากกว่าค่าเฉลี่ย (Above Average)
-    คำใบ้: GROUP BY member, HAVING COUNT(*) > (subquery หา AVG ของจำนวนการยืมต่อคน)"""
+def report_daily_sales():
+    """💰 ยอดขายรวมต่อวัน (Daily Sales)
+    คำใบ้: JOIN food_order→order_item→menu_item, GROUP BY วันที่, SUM(qty*price)"""
     # TODO: เขียน SQL รายงานนี้ (เขียน JOIN แบบ explicit INNER JOIN ... ON ...)
-    _todo("report_members_above_avg")
+    _todo("report_daily_sales")
+
+def report_big_orders():
+    """🧾 ออเดอร์ยอดเกิน 500 บาท (HAVING)
+    คำใบ้: GROUP BY order, HAVING SUM(qty*price) > 500"""
+    # TODO: เขียน SQL รายงานนี้ (เขียน JOIN แบบ explicit INNER JOIN ... ON ...)
+    _todo("report_big_orders")
+
+# ============================================================
+#  รายการรายงานที่แสดงบนหน้า /report  (เรียงตามลำดับที่แสดง)
+#  ★ วิธีเพิ่มรายงานใหม่ (ไม่ต้องแก้ไฟล์อื่น):
+#    1) เขียนฟังก์ชัน report_xxx() ด้านบน ให้ return run_query(sql)
+#    2) เพิ่ม 1 บรรทัดในรายการนี้:  ("ชื่อใน-url", "หัวข้อที่แสดง", ชื่อฟังก์ชัน)
+#  ★ รายการนี้ต้องอยู่ท้ายไฟล์ (หลังฟังก์ชันทั้งหมด) ไม่งั้น Python หาชื่อฟังก์ชันไม่เจอ
+#  ★ ห้ามตั้งชื่อ url ว่า "summary" (ใช้แล้วสำหรับการ์ดสรุป)
+# ============================================================
+REPORTS = [
+    ("popular-items", "📈 เมนูขายดี (Best Sellers)",        report_popular_items),
+    ("daily-sales",   "💰 ยอดขายรวมต่อวัน (Daily Sales)",   report_daily_sales),
+    ("big-orders",    "🧾 ออเดอร์ยอดเกิน 500 บาท (HAVING)", report_big_orders),
+    # ("my-report", "📋 รายงานของฉัน", report_my_report),   ← ตัวอย่างการเพิ่มรายงานที่ 4
+]
